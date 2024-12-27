@@ -4,14 +4,17 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class CheckRole
 {
     public function handle(Request $request, Closure $next, $role)
     {
-        if (auth()->user()->role !== $role) {
+        $user = Auth::user();
+        
+        if (!$user || $user->role !== $role) {
             return response()->json([
-                'message' => 'Unauthorized'
+                'message' => 'Unauthorized. ' . ucfirst($role) . ' access required.'
             ], 403);
         }
 

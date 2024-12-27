@@ -5,79 +5,112 @@ namespace App\Http\Controllers;
 use App\Models\Attendance;
 use Carbon\Carbon;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class AttendanceController extends Controller
 {
+    const START_TIME = '09:00';
+    const END_TIME = '18:00';
+
     public function index()
     {
-        // Hanya admin yang bisa melihat semua data
-        if (auth()->user()->role !== 'admin') {
-            $attendance = Attendance::with('employee')
-                ->where('employee_id', auth()->user()->employee->id)
-                ->get();
+        Carbon::setLocale('id');
+        
+        $user = auth()->user();
+        if ($user->role === 'admin') {
+            $attendances = Attendance::with('employee.user')
+                ->latest('check_in')
+                ->paginate(10);
         } else {
-            $attendance = Attendance::with('employee')->get();
+            $attendances = Attendance::where('employee_id', $user->employee->id)
+                ->latest('check_in')
+                ->paginate(10);
         }
 
-        return response()->json([
-            'message' => 'Data absensi berhasil diambil',
-            'data' => $attendance
-        ]);
+        $todayAttendance = null;
+        if ($user->role !== 'admin') {
+            $todayAttendance = Attendance::where('employee_id', $user->employee->id)
+                ->whereRaw('DATE(CONVERT_TZ(check_in, "+00:00", "+07:00")) = CURDATE()')
+                ->first();
+        }
+
+        return view('attendance.index', compact('attendances', 'todayAttendance'));
     }
 
     public function store(Request $request)
     {
-        // Hanya user biasa yang bisa absen
-        if (auth()->user()->role === 'admin') {
-            return response()->json([
-                'message' => 'Admin tidak dapat melakukan absensi'
-            ], 403);
+        $user = auth()->user();
+        if ($user->role === 'admin') {
+            return back()->with('error', 'Admin tidak dapat melakukan absensi');
         }
 
-        $employee_id = auth()->user()->employee->id;
-
-        // Check if employee already checked in today
-        $existing = Attendance::where('employee_id', $employee_id)
-            ->whereDate('check_in', today())
+        // Ambil waktu server dalam WIB menggunakan CONVERT_TZ
+        $serverTime = DB::select("SELECT CONVERT_TZ(NOW(), '+00:00', '+07:00') as now")[0]->now;
+        $currentTime = date('H:i', strtotime($serverTime));
+        
+        // Debug waktu
+        \Log::info('Server times:', [
+            'raw_now' => DB::select('SELECT NOW() as now')[0]->now,
+            'converted_now' => $serverTime,
+            'current_time' => $currentTime
+        ]);
+        
+        // Cek apakah sudah absen masuk hari ini
+        $todayAttendance = Attendance::where('employee_id', $user->employee->id)
+            ->whereRaw('DATE(CONVERT_TZ(check_in, "+00:00", "+07:00")) = CURDATE()')
             ->first();
 
-        if ($existing) {
-            return response()->json([
-                'message' => 'Anda sudah absen hari ini'
-            ], 422);
+        if ($todayAttendance) {
+            if (!$todayAttendance->check_out) {
+                DB::table('attendances')
+                    ->where('id', $todayAttendance->id)
+                    ->update([
+                        'check_out' => DB::raw('CONVERT_TZ(NOW(), "+00:00", "+07:00")'),
+                        'is_early_leave' => $currentTime < self::END_TIME,
+                        'updated_at' => DB::raw('CONVERT_TZ(NOW(), "+00:00", "+07:00")')
+                    ]);
+
+                return back()->with('success', 'Absen pulang berhasil dicatat - ' . $currentTime . ' WIB');
+            }
+
+            return back()->with('error', 'Anda sudah melakukan absen masuk dan keluar hari ini');
         }
 
-        // Cek keterlambatan
-        $now = Carbon::now();
-        $isLate = $now->format('H:i') > '08:00';
+        // Absen masuk
+        $isLate = $currentTime > self::START_TIME;
+        
+        DB::statement("
+            INSERT INTO attendances (employee_id, check_in, is_late, created_at, updated_at)
+            VALUES (?, CONVERT_TZ(NOW(), '+00:00', '+07:00'), ?, 
+                   CONVERT_TZ(NOW(), '+00:00', '+07:00'), 
+                   CONVERT_TZ(NOW(), '+00:00', '+07:00'))
+        ", [$user->employee->id, $isLate]);
 
-        $attendance = Attendance::create([
-            'employee_id' => $employee_id,
-            'check_in' => $now,
-            'is_late' => $isLate
-        ]);
+        $message = 'Absen masuk berhasil dicatat - ' . $currentTime . ' WIB';
+        if ($isLate) {
+            $message .= ' (Terlambat)';
+        }
 
-        return response()->json([
-            'message' => 'Absensi berhasil dicatat',
-            'data' => $attendance
-        ], 201);
+        return back()->with('success', $message);
     }
 
-    public function getLateAttendances()
+    public function report()
     {
-        // Hanya admin yang bisa mengakses
-        if (auth()->user()->role !== 'admin') {
-            return response()->json([
-                'message' => 'Unauthorized'
-            ], 403);
-        }
+        $attendances = Attendance::with('employee.user')
+            ->when(request('date'), function($query) {
+                return $query->whereDate('check_in', request('date'));
+            })
+            ->when(request('status'), function($query) {
+                if (request('status') === 'late') {
+                    return $query->where('is_late', true);
+                } elseif (request('status') === 'early_leave') {
+                    return $query->where('is_early_leave', true);
+                }
+                return $query;
+            })
+            ->latest('check_in')
+            ->paginate(10);
 
-        $lateAttendances = Attendance::with('employee')
-            ->where('is_late', true)
-            ->get();
-
-        return response()->json([
-            'data' => $lateAttendances
-        ]);
+        return view('attendance.report', compact('attendances'));
     }
 } 

@@ -4,16 +4,18 @@ namespace App\Http\Middleware;
 
 use Closure;
 use Illuminate\Http\Request;
-use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Support\Facades\Auth;
 
-class checkAdmin
+class CheckAdmin
 {
-    public function handle(Request $request, Closure $next): Response
+    public function handle(Request $request, Closure $next)
     {
-        if (!auth()->check() || auth()->user()->role != 'admin') {
-            return response()->json(['message' => 'Unauthorized'], 401);
+        $user = Auth::user();
+        
+        if (!$user || $user->role !== 'admin') {
+            return redirect()->route('dashboard')->with('error', 'Unauthorized access');
         }
 
         return $next($request);
     }
-}
+} 
