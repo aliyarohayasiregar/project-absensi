@@ -8,14 +8,19 @@
     },
     "routes": [
         {
+            "src": "/(css|js|images|fonts|build)/(.*)",
+            "dest": "/public/$1/$2"
+        },
+        {
             "src": "/(.*)",
             "dest": "/api/index.php"
         }
     ],
     "env": {
+        "APP_NAME": "Laravel",
         "APP_ENV": "production",
         "APP_DEBUG": "false",
-        "APP_URL": "https://your-project-url.vercel.app",
+        "APP_URL": "https://your-vercel-url.vercel.app",
         "APP_CONFIG_CACHE": "/tmp/config.php",
         "APP_EVENTS_CACHE": "/tmp/events.php",
         "APP_PACKAGES_CACHE": "/tmp/packages.php",
@@ -27,5 +32,8 @@
         "SESSION_DRIVER": "cookie",
         "SSR_TEMP_PATH": "/tmp/ssr",
         "NODE_PATH": "node"
-    }
+    },
+    "buildCommand": "npm run build",
+    "outputDirectory": "public",
+    "public": true
 }
