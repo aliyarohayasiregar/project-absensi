@@ -33,7 +33,6 @@
         "SSR_TEMP_PATH": "/tmp/ssr",
         "NODE_PATH": "node"
     },
-    "buildCommand": "php -r \"copy('.env.production', '.env');\" && npm install && npm run build",
-    "outputDirectory": "public",
-    "public": true
+    "buildCommand": "npm install && npm run build",
+    "outputDirectory": "public"
 }
