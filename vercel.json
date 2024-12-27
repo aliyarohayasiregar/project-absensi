@@ -33,7 +33,8 @@
         "SSR_TEMP_PATH": "/tmp/ssr",
         "NODE_PATH": "node"
     },
-    "buildCommand": "npm run build",
+    "buildCommand": "composer install --no-dev && npm install && npm run build",
+    "installCommand": "composer install",
     "outputDirectory": "public",
     "public": true
 }
