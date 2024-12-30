@@ -60,8 +60,18 @@
 
 @push('scripts')
 <script>
-    $(document).ready(function() {
-        $('#dataTable').DataTable();
+$(document).ready(function() {
+    $('#dataTable').DataTable({
+        "order": [[ 0, "asc" ]],
+        "pageLength": 25,
+        "language": {
+            "url": "//cdn.datatables.net/plug-ins/1.13.7/i18n/id.json"
+        },
+        dom: 'Bfrtip',
+        buttons: [
+            'excel', 'pdf', 'print'
+        ]
     });
+});
 </script>
 @endpush 

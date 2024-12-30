@@ -11,23 +11,28 @@
             <h6 class="m-0 font-weight-bold text-primary">Filter</h6>
         </div>
         <div class="card-body">
-            <form method="GET" action="{{ route('attendance.report') }}" class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label">Tanggal</label>
-                    <input type="date" class="form-control" name="date" value="{{ request('date') }}">
+            <form method="GET" action="{{ route('attendance.report') }}" class="row g-3" id="filterForm">
+                <div class="col-md-3">
+                    <label class="form-label">Tanggal Awal</label>
+                    <input type="date" class="form-control" name="start_date" id="start_date" value="{{ request('start_date') }}">
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
+                    <label class="form-label">Tanggal Akhir</label>
+                    <input type="date" class="form-control" name="end_date" id="end_date" value="{{ request('end_date') }}">
+                </div>
+                <div class="col-md-3">
                     <label class="form-label">Status</label>
-                    <select class="form-select" name="status">
-                        <option value="">Semua</option>
+                    <select class="form-select" name="status" id="statusFilter">
+                        <option value="">Semua Status</option>
                         <option value="late" {{ request('status') === 'late' ? 'selected' : '' }}>Terlambat</option>
                         <option value="ontime" {{ request('status') === 'ontime' ? 'selected' : '' }}>Tepat Waktu</option>
                     </select>
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label">&nbsp;</label>
-                    <div class="d-grid">
+                    <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-primary">Filter</button>
+                        <a href="{{ route('attendance.report') }}" class="btn btn-secondary">Reset</a>
                     </div>
                 </div>
             </form>
@@ -54,9 +59,9 @@
                             <td>{{ $attendance->check_in->format('H:i:s') }}</td>
                             <td>
                                 @if($attendance->is_late)
-                                <span class="badge bg-danger">Terlambat</span>
+                                    <span class="badge bg-danger">Terlambat</span>
                                 @else
-                                <span class="badge bg-success">Tepat Waktu</span>
+                                    <span class="badge bg-success">Tepat Waktu</span>
                                 @endif
                             </td>
                         </tr>
@@ -64,23 +69,43 @@
                     </tbody>
                 </table>
             </div>
-            {{ $attendances->withQueryString()->links() }}
         </div>
     </div>
 </div>
-@endsection
 
 @push('scripts')
 <script>
-    $(document).ready(function() {
-        $('#dataTable').DataTable({
-            "order": [[ 1, "desc" ]],
-            "pageLength": 25,
-            dom: 'Bfrtip',
-            buttons: [
-                'excel', 'pdf', 'print'
-            ]
-        });
+$(document).ready(function() {
+    let table = $('#dataTable').DataTable({
+        "order": [[ 1, "desc" ]],
+        "pageLength": 25,
+        "language": {
+            "url": "//cdn.datatables.net/plug-ins/1.13.7/i18n/id.json"
+        },
+        dom: 'Bfrtip',
+        buttons: [
+            'excel', 'pdf', 'print'
+        ]
     });
+
+    // Date range validation
+    $('#start_date, #end_date').change(function() {
+        let startDate = $('#start_date').val();
+        let endDate = $('#end_date').val();
+        
+        if(startDate && endDate) {
+            if(startDate > endDate) {
+                alert('Tanggal awal tidak boleh lebih besar dari tanggal akhir');
+                $(this).val('');
+            }
+        }
+    });
+
+    // Auto submit on status change
+    $('#statusFilter').change(function() {
+        $('#filterForm').submit();
+    });
+});
 </script>
-@endpush 
+@endpush
+@endsection 

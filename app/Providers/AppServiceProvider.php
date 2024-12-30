@@ -21,7 +21,14 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        // Tidak perlu set timezone MySQL lagi karena kita menggunakan CONVERT_TZ
+        // Set timezone PHP
         date_default_timezone_set('Asia/Jakarta');
+        
+        // Set timezone hanya untuk session saat ini
+        try {
+            DB::statement("SET time_zone = '+07:00'");
+        } catch (\Exception $e) {
+            \Log::warning('Tidak dapat mengatur timezone MySQL: ' . $e->getMessage());
+        }
     }
 }

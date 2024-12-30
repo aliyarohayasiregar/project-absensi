@@ -44,31 +44,36 @@ class AttendanceController extends Controller
             return back()->with('error', 'Admin tidak dapat melakukan absensi');
         }
 
-        // Ambil waktu server dalam WIB menggunakan CONVERT_TZ
-        $serverTime = DB::select("SELECT CONVERT_TZ(NOW(), '+00:00', '+07:00') as now")[0]->now;
-        $currentTime = date('H:i', strtotime($serverTime));
+        // Force timezone dan dapatkan waktu yang benar
+        config(['app.timezone' => 'Asia/Jakarta']);
+        date_default_timezone_set('Asia/Jakarta');
         
-        // Debug waktu
-        \Log::info('Server times:', [
-            'raw_now' => DB::select('SELECT NOW() as now')[0]->now,
-            'converted_now' => $serverTime,
-            'current_time' => $currentTime
+        $now = now();
+        $currentTime = $now->format('H:i:s');
+        
+        // Debug waktu yang lebih detail
+        \Log::info('Debug Waktu:', [
+            'raw_now' => now(),
+            'formatted_now' => $now->format('Y-m-d H:i:s'),
+            'current_time' => $currentTime,
+            'windows_time' => exec('time /t'),
+            'php_timezone' => date_default_timezone_get(),
+            'app_timezone' => config('app.timezone'),
+            'is_dst' => date('I'),
+            'offset' => date('Z'),
         ]);
-        
-        // Cek apakah sudah absen masuk hari ini
+
+        // Cek absensi hari ini menggunakan timestamp
         $todayAttendance = Attendance::where('employee_id', $user->employee->id)
-            ->whereRaw('DATE(CONVERT_TZ(check_in, "+00:00", "+07:00")) = CURDATE()')
+            ->whereRaw('DATE(check_in) = ?', [$now->format('Y-m-d')])
             ->first();
 
         if ($todayAttendance) {
             if (!$todayAttendance->check_out) {
-                DB::table('attendances')
-                    ->where('id', $todayAttendance->id)
-                    ->update([
-                        'check_out' => DB::raw('CONVERT_TZ(NOW(), "+00:00", "+07:00")'),
-                        'is_early_leave' => $currentTime < self::END_TIME,
-                        'updated_at' => DB::raw('CONVERT_TZ(NOW(), "+00:00", "+07:00")')
-                    ]);
+                $todayAttendance->update([
+                    'check_out' => $now,
+                    'is_early_leave' => $currentTime < self::END_TIME
+                ]);
 
                 return back()->with('success', 'Absen pulang berhasil dicatat - ' . $currentTime . ' WIB');
             }
@@ -78,13 +83,13 @@ class AttendanceController extends Controller
 
         // Absen masuk
         $isLate = $currentTime > self::START_TIME;
-        
-        DB::statement("
-            INSERT INTO attendances (employee_id, check_in, is_late, created_at, updated_at)
-            VALUES (?, CONVERT_TZ(NOW(), '+00:00', '+07:00'), ?, 
-                   CONVERT_TZ(NOW(), '+00:00', '+07:00'), 
-                   CONVERT_TZ(NOW(), '+00:00', '+07:00'))
-        ", [$user->employee->id, $isLate]);
+
+        // Simpan absensi dengan timestamp
+        Attendance::create([
+            'employee_id' => $user->employee->id,
+            'check_in' => $now,
+            'is_late' => $isLate
+        ]);
 
         $message = 'Absen masuk berhasil dicatat - ' . $currentTime . ' WIB';
         if ($isLate) {
@@ -94,22 +99,25 @@ class AttendanceController extends Controller
         return back()->with('success', $message);
     }
 
-    public function report()
+    public function report(Request $request)
     {
-        $attendances = Attendance::with('employee.user')
-            ->when(request('date'), function($query) {
-                return $query->whereDate('check_in', request('date'));
+        $query = Attendance::with('employee.user')
+            ->when($request->filled('start_date'), function($q) use ($request) {
+                return $q->whereDate('check_in', '>=', $request->start_date);
             })
-            ->when(request('status'), function($query) {
-                if (request('status') === 'late') {
-                    return $query->where('is_late', true);
-                } elseif (request('status') === 'early_leave') {
-                    return $query->where('is_early_leave', true);
+            ->when($request->filled('end_date'), function($q) use ($request) {
+                return $q->whereDate('check_in', '<=', $request->end_date);
+            })
+            ->when($request->filled('status'), function($q) use ($request) {
+                if ($request->status === 'late') {
+                    return $q->where('is_late', true);
+                } elseif ($request->status === 'ontime') {
+                    return $q->where('is_late', false);
                 }
-                return $query;
             })
-            ->latest('check_in')
-            ->paginate(10);
+            ->latest('check_in');
+
+        $attendances = $query->get();
 
         return view('attendance.report', compact('attendances'));
     }
