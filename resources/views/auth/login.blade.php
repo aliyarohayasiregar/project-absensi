@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Login - PT Guna Dodos</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         body {
             background: linear-gradient(135deg, #43cea2 0%, #185a9d 100%);
@@ -25,9 +26,13 @@
             backdrop-filter: blur(10px);
         }
         .company-logo {
-            width: 120px;
-            height: auto;
-            margin-bottom: 1.5rem;
+            font-size: 4rem;
+            color: #28a745;
+            margin-bottom: 1rem;
+            filter: drop-shadow(0 0 5px rgba(40, 167, 69, 0.3));
+        }
+        .company-logo:hover {
+            animation: treeWave 2s ease infinite;
         }
         .company-name {
             color: #1a5f7a;
@@ -49,55 +54,40 @@
         }
         .form-control:focus {
             border-color: #43cea2;
-            box-shadow: 0 0 0 2px rgba(67, 206, 162, 0.2);
+            box-shadow: 0 0 0 0.2rem rgba(67, 206, 162, 0.25);
         }
         .btn-login {
+            width: 100%;
+            padding: 0.8rem;
+            font-weight: 600;
             background: linear-gradient(to right, #43cea2, #185a9d);
             border: none;
-            padding: 0.8rem;
             border-radius: 8px;
-            width: 100%;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
+            color: white;
             margin-top: 1rem;
             transition: all 0.3s ease;
         }
         .btn-login:hover {
-            background: linear-gradient(to right, #3bb793, #14508c);
-            transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(67, 206, 162, 0.2);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(67, 206, 162, 0.4);
         }
-        .alert {
-            border-radius: 8px;
-            background-color: rgba(255, 255, 255, 0.9);
-        }
-        .form-label {
-            color: #2d3748;
-            font-weight: 500;
-        }
-        .invalid-feedback {
-            font-size: 0.85rem;
-        }
-        @media (max-height: 700px) {
-            body {
-                align-items: flex-start;
-            }
-            .login-container {
-                margin: 20px auto;
-            }
+        @keyframes treeWave {
+            0% { transform: rotate(0deg); }
+            25% { transform: rotate(5deg); }
+            75% { transform: rotate(-5deg); }
+            100% { transform: rotate(0deg); }
         }
     </style>
 </head>
 <body>
     <div class="login-container text-center">
-        <!-- Logo perusahaan bisa ditambahkan di sini -->
-        <!-- <img src="{{ asset('images/logo.png') }}" alt="PT Guna Dodos" class="company-logo"> -->
+        <!-- Icon pohon sawit -->
+        <i class="fas fa-tree company-logo"></i>
         
         <h1 class="company-name">PT Guna Dodos</h1>
         <p class="company-address">
-            Jl. Bintara No. 14 F<br>
-            Pekanbaru, Riau
+            <!-- Jl. Bintara No. 14 F<br>
+            Pekanbaru, Riau -->
         </p>
 
         @if(session('error'))
@@ -109,7 +99,9 @@
         <form method="POST" action="{{ route('login.post') }}" class="text-start">
             @csrf
             <div class="mb-3">
-                <label for="email" class="form-label">Email</label>
+                <label for="email" class="form-label">
+                    <i class="fas fa-envelope me-2"></i>Email
+                </label>
                 <input type="email" 
                        class="form-control @error('email') is-invalid @enderror" 
                        name="email" 
@@ -122,7 +114,9 @@
             </div>
 
             <div class="mb-3">
-                <label for="password" class="form-label">Password</label>
+                <label for="password" class="form-label">
+                    <i class="fas fa-lock me-2"></i>Password
+                </label>
                 <input type="password" 
                        class="form-control @error('password') is-invalid @enderror" 
                        name="password" 
@@ -132,8 +126,8 @@
                 @enderror
             </div>
 
-            <button type="submit" class="btn btn-login btn-primary">
-                Login
+            <button type="submit" class="btn btn-login">
+                <i class="fas fa-sign-in-alt me-2"></i>Login
             </button>
         </form>
     </div>
